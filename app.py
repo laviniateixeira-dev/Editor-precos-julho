@@ -131,6 +131,7 @@ def prep_editor(df: pd.DataFrame) -> pd.DataFrame:
     
     for c in df.columns:
         # Adicionei "ocupacao" aqui para garantir que ela vire numérico
+        # Garantir que ocupacao_atual seja tratado como numérico:
         if any(keyword in c for keyword in ["lf", "ratio", "tkm", "price", "mult", "preco", "ocupacao"]):
             df[c] = pd.to_numeric(df[c].astype(str).str.replace("null", ""), errors="coerce")
         elif any(keyword in c for keyword in ["buscas", "pax", "capacidade", "vagas", "antecedencia"]):
@@ -200,10 +201,11 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
     if faltam:
         st.markdown(f'<div class="warn-banner">⚠️ Atenção: Faltam algumas colunas no CSV ({", ".join(faltam)}). Tente apertar o botão "Atualizar Cache" no menu lateral.</div>', unsafe_allow_html=True)
 
-    def calc_row_id(row):
-        data_val = row.get("data_atual")
-        d_str = pd.to_datetime(data_val).strftime("%Y-%m-%d") if pd.notna(data_val) else ""
-        return f"{d_str}|{row.get('turno','')}|{row.get('sentido','')}|{row.get('tipo_assento','')}"
+    # SKU = data_atual | turno | sentido | rota_principal  (sem tipo_assento na chave)
+def calc_row_id(row):
+    data_val = row.get("data_atual")
+    d_str = pd.to_datetime(data_val).strftime("%Y-%m-%d") if pd.notna(data_val) else ""
+    return f"{d_str}|{row.get('turno','')}|{row.get('sentido','')}|{row.get('rota_principal','')}"
 
     if "row_id" not in df_raw.columns:
         df_raw["row_id"] = df_raw.apply(calc_row_id, axis=1)
