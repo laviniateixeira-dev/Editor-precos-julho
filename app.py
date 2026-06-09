@@ -27,7 +27,7 @@ if "cb_version" not in st.session_state:
 # ==========================================
 # CONFIGURAÇÕES DA PÁGINA E LINKS
 # ==========================================
-feriado_atual = "corpus_2026"
+feriado_atual = "julho_2026"
 BASE_URL_CURVA = f"https://raw.githubusercontent.com/laviniateixeira-dev/Pricing-Corpus-Christi/main/data/curva_{feriado_atual}.csv"
 
 st.set_page_config(
@@ -170,16 +170,14 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
         """, unsafe_allow_html=True)
     
     with col_t2:
-        opcoes_dropdown = ["Páscoa 2026", "Corpus 2025", "Maio 2026"]
+        opcoes_dropdown = ["Julho 2025"]
         st.write("") 
         ref_nome = st.selectbox("Comparar com (Ref):", opcoes_dropdown, key=f"{tab_key}_ref_sel")
         
         mapa_ref = {
-            "Páscoa 2026": "pascoa_2026",
-            "Corpus 2025": "corpus_2025",
-            "Maio 2026": "maio_2026"
+            "Julho 2025": "julho_2025"
         }
-        ref_sel = mapa_ref.get(ref_nome, "pascoa_2026")
+        ref_sel = mapa_ref.get(ref_nome, "julho_2025")
 
         col_data_ref = f"data_ref_{ref_sel}"
         col_buscas_ref = f"buscas_{ref_sel}"
