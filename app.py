@@ -199,13 +199,13 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
     essenciais = [col_data_ref, col_lf_ref, col_tkm_ref, col_buscas_atual, col_lf_atual]
     faltam = [c for c in essenciais if c not in df_raw.columns]
     if faltam:
-        st.markdown(f'<div class="warn-banner">⚠️ Atenção: Faltam algumas colunas no CSV ({", ".join(faltam)}). Tente apertar o botão "Atualizar Cache" no menu lateral.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="warn-banner">⚠️ Atenção...</div>', unsafe_allow_html=True)
 
     # SKU = data_atual | turno | sentido | rota_principal  (sem tipo_assento na chave)
-def calc_row_id(row):
-    data_val = row.get("data_atual")
-    d_str = pd.to_datetime(data_val).strftime("%Y-%m-%d") if pd.notna(data_val) else ""
-    return f"{d_str}|{row.get('turno','')}|{row.get('sentido','')}|{row.get('rota_principal','')}"
+    def calc_row_id(row):
+        data_val = row.get("data_atual")
+        d_str = pd.to_datetime(data_val).strftime("%Y-%m-%d") if pd.notna(data_val) else ""
+        return f"{d_str}|{row.get('turno','')}|{row.get('sentido','')}|{row.get('rota_principal','')}"
 
     if "row_id" not in df_raw.columns:
         df_raw["row_id"] = df_raw.apply(calc_row_id, axis=1)
