@@ -28,7 +28,7 @@ if "cb_version" not in st.session_state:
 # CONFIGURAÇÕES DA PÁGINA E LINKS
 # ==========================================
 feriado_atual = "julho_2026"
-BASE_URL_CURVA = f"https://raw.githubusercontent.com/laviniateixeira-dev/Pricing-Corpus-Christi/main/data/curva_{feriado_atual}.csv"
+BASE_URL_CURVA = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/curva_{feriado_atual}.csv"
 
 st.set_page_config(
     page_title="Pricing · Editor",
@@ -405,7 +405,8 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                     if not gh_token: 
                         st.warning("Atenção: Cole seu token no campo abaixo primeiro.")
                     else:
-                        repo = "laviniateixeira-dev/Pricing-Feriados"
+                        # ===== O REPOSITÓRIO CORRETO ESTÁ AQUI AGORA =====
+                        repo = "laviniateixeira-dev/Editor-precos-julho"
                         path = f"data/alteracoes_{feriado_atual}.csv"
                         r_gh = requests.put(f"https://api.github.com/repos/{repo}/contents/{path}", 
                                             headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json"},
