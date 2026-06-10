@@ -424,7 +424,7 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                             st.rerun()
                         else: st.error(f"Erro ao enviar: {r_gh.status_code}")
 
-            # 3. Enviar Databricks (Corrigido para Unity Catalog Volumes)
+            # 3. Enviar Databricks (Corrigido para aceitar 204 como sucesso)
             with col_db:
                 if st.button("Enviar pro Databricks", use_container_width=True, type="primary"):
                     db_url = st.session_state.get("db_url_input", "").split('?')[0].strip().strip('/')
@@ -433,7 +433,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                     if not db_url or not db_token:
                         st.warning("Preencha a URL e Token do Databricks abaixo.")
                     else:
-                        # Mandando para o MESMO volume que você já usava
                         caminho_volume = f"/Volumes/prod/dataanalysis/files/pricing_{feriado_atual}.csv"
                         endpoint = f"{db_url}/api/2.0/fs/files{caminho_volume}"
                         
@@ -442,15 +441,16 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                             "Content-Type": "application/octet-stream"
                         }
                         
-                        # Usando requests.put com os bytes diretos
                         r_db = requests.put(endpoint, headers=headers, data=csv_bytes, params={"overwrite": "true"})
                         
-                        if r_db.status_code == 200:
+                        # ADICIONADO: Aceitar 201 (Created) e 204 (No Content) como sucesso
+                        if r_db.status_code in (200, 201, 204):
                             mark_as_sent()
                             st.success(f"Sucesso! Arquivo enviado para: {caminho_volume}")
                             st.rerun()
                         else:
-                            st.error(f"Erro Databricks: {r_db.status_code} - {r_db.text}")
+                            # ADICIONADO: Mensagem de erro mais amigável
+                            st.error(f"Erro ao enviar para o Databricks. Código: {r_db.status_code}. Mensagem: {r_db.text}")
 
             # 4. Limpar Edições
             with col_b3:
