@@ -28,7 +28,10 @@ if "cb_version" not in st.session_state:
 # CONFIGURAÇÕES DA PÁGINA E LINKS
 # ==========================================
 feriado_atual = "julho_2026"
-BASE_URL_CURVA = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/curva_{feriado_atual}.csv"
+
+# Ajustado para bater exatamente com o arquivo "julho_2026_editor.csv" que o Databricks enviou
+nome_arquivo_github = "julho_2026_editor" 
+BASE_URL_CURVA = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/{nome_arquivo_github}.csv"
 
 st.set_page_config(
     page_title="Pricing · Editor",
@@ -134,6 +137,8 @@ def prep_editor(df: pd.DataFrame) -> pd.DataFrame:
             df[c] = pd.to_numeric(df[c].astype(str).str.replace("null", ""), errors="coerce")
         elif any(keyword in c for keyword in ["buscas", "pax", "capacidade", "vagas", "antecedencia"]):
             df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
+        elif c in ["ultimas_datas_reserva", "ultimos_valores_pagos"]:
+            df[c] = df[c].astype(str).replace("null", "-")
             
     if "data_atual" in df.columns: df["data_atual"] = pd.to_datetime(df["data_atual"], errors="coerce")
     return df
@@ -247,6 +252,7 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
         "row_id", col_data_ref, "data_atual", "dia_da_semana", "antecedencia", 
         "rota_principal", "sentido", "tipo_assento", "turno", 
         col_buscas_ref, col_buscas_atual, col_pax_atual, "capacidade_atual", "vagas_restantes", "ocupacao_atual", 
+        "ultimas_datas_reserva", "ultimos_valores_pagos", 
         col_lf_ref, col_lf_atual, col_ratio_ref, "price_cc", col_tkm_ref, "tkm_atual", 
         "mult_atual_aplicado", "preco_cenario_atual", "mult_flutuacao", "preco_flutuacao", 
         "preco_maximo_feriado", "data_atualizacao"
@@ -277,6 +283,7 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
     show_cols = [
         "incluir", "data_ref_fmt", "data_fmt", "dia_da_semana", "antecedencia", "rota_principal", "sentido", "tipo_assento", "turno", 
         col_buscas_ref, col_buscas_atual, col_pax_atual, "capacidade_atual", "vagas_restantes", "ocupacao_a_fmt",
+        "ultimas_datas_reserva", "ultimos_valores_pagos", 
         "lf_ref_fmt", "lf_a_fmt", "ratio_ref_fmt", "price_cc", col_tkm_ref, "tkm_atual", 
         "mult_atual_aplicado", "preco_cenario_atual", "mult_flutuacao", "preco_flutuacao", "preco_maximo_feriado", "data_atualizacao", "Preco novo"
     ]
@@ -301,6 +308,8 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
         "capacidade_atual": st.column_config.NumberColumn("Capacidade", disabled=True),
         "vagas_restantes": st.column_config.NumberColumn("↑ Vagas", disabled=True),
         "ocupacao_a_fmt": st.column_config.TextColumn("Ocupação", disabled=True),
+        "ultimas_datas_reserva": st.column_config.TextColumn("Últimas Datas Res.", disabled=True), 
+        "ultimos_valores_pagos": st.column_config.TextColumn("Últimos Val. Pagos", disabled=True), 
         "lf_ref_fmt": st.column_config.TextColumn(f"LF ({ref_nome})", disabled=True),
         "lf_a_fmt": st.column_config.TextColumn("LF Atual", disabled=True),
         "ratio_ref_fmt": st.column_config.TextColumn(f"Ratio LF ({ref_nome})", disabled=True),
@@ -414,7 +423,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                             st.rerun()
                         else: st.error(f"Erro ao enviar: {r_gh.status_code}")
 
-            # 3. Enviar Databricks
             # 3. Enviar Databricks (Corrigido para Unity Catalog Volumes)
             with col_db:
                 if st.button("Enviar pro Databricks", use_container_width=True, type="primary"):
