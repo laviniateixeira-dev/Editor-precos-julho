@@ -415,32 +415,30 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                         else: st.error(f"Erro ao enviar: {r_gh.status_code}")
 
             # 3. Enviar Databricks
+            # 3. Enviar Databricks (Corrigido para Unity Catalog Volumes)
             with col_db:
                 if st.button("Enviar pro Databricks", use_container_width=True, type="primary"):
-                    db_url = st.session_state.get("db_url_input", "").strip('/')
+                    db_url = st.session_state.get("db_url_input", "").split('?')[0].strip().strip('/')
                     db_token = st.session_state.get("db_token_input", "")
                     
                     if not db_url or not db_token:
                         st.warning("Preencha a URL e Token do Databricks abaixo.")
                     else:
-                        nome_arquivo_db = f"pricing_{feriado_atual}.csv"
-                        caminho_dbfs = f"/FileStore/uploads_pricing/{nome_arquivo_db}"
+                        # Mandando para o MESMO volume que você já usava
+                        caminho_volume = f"/Volumes/prod/dataanalysis/files/pricing_{feriado_atual}.csv"
+                        endpoint = f"{db_url}/api/2.0/fs/files{caminho_volume}"
                         
-                        encoded_csv = base64.b64encode(csv_bytes).decode("utf-8")
-                        
-                        payload = {
-                            "path": caminho_dbfs,
-                            "contents": encoded_csv,
-                            "overwrite": True
+                        headers = {
+                            "Authorization": f"Bearer {db_token}",
+                            "Content-Type": "application/octet-stream"
                         }
-                        headers = {"Authorization": f"Bearer {db_token}"}
                         
-                        endpoint = f"{db_url}/api/2.0/dbfs/put"
-                        r_db = requests.post(endpoint, json=payload, headers=headers)
+                        # Usando requests.put com os bytes diretos
+                        r_db = requests.put(endpoint, headers=headers, data=csv_bytes, params={"overwrite": "true"})
                         
                         if r_db.status_code == 200:
                             mark_as_sent()
-                            st.success(f"Sucesso! Arquivo enviado para o Databricks em: {caminho_dbfs}")
+                            st.success(f"Sucesso! Arquivo enviado para: {caminho_volume}")
                             st.rerun()
                         else:
                             st.error(f"Erro Databricks: {r_db.status_code} - {r_db.text}")
