@@ -130,8 +130,6 @@ def prep_editor(df: pd.DataFrame) -> pd.DataFrame:
         df = df.rename(columns={"data": "data_atual"})
     
     for c in df.columns:
-        # Adicionei "ocupacao" aqui para garantir que ela vire numérico
-        # Garantir que ocupacao_atual seja tratado como numérico:
         if any(keyword in c for keyword in ["lf", "ratio", "tkm", "price", "mult", "preco", "ocupacao"]):
             df[c] = pd.to_numeric(df[c].astype(str).str.replace("null", ""), errors="coerce")
         elif any(keyword in c for keyword in ["buscas", "pax", "capacidade", "vagas", "antecedencia"]):
@@ -201,7 +199,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
     if faltam:
         st.markdown(f'<div class="warn-banner">⚠️ Atenção...</div>', unsafe_allow_html=True)
 
-    # SKU = data_atual | turno | sentido | rota_principal  (sem tipo_assento na chave)
     def calc_row_id(row):
         data_val = row.get("data_atual")
         d_str = pd.to_datetime(data_val).strftime("%Y-%m-%d") if pd.notna(data_val) else ""
@@ -246,7 +243,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                 st.session_state[key_enviadas] = set()
                 st.rerun()
 
-    # Adicionada "ocupacao_atual" aqui nas colunas brutas
     cols_editor = [
         "row_id", col_data_ref, "data_atual", "dia_da_semana", "antecedencia", 
         "rota_principal", "sentido", "tipo_assento", "turno", 
@@ -272,14 +268,12 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
     if col_lf_atual in df_editor.columns: 
         df_editor["lf_a_fmt"] = (df_editor[col_lf_atual] * 100).astype(float).round(1).astype(str) + "%"
         
-    # Formatação da nova coluna ocupacao_atual em texto (%)
     if "ocupacao_atual" in df_editor.columns:
         df_editor["ocupacao_a_fmt"] = (df_editor["ocupacao_atual"].astype(float) * 100).round(1).astype(str) + "%"
 
     df_editor["incluir"] = True
     df_editor["Preco novo"] = None
 
-    # Adicionada "ocupacao_a_fmt" aqui nas colunas visuais
     show_cols = [
         "incluir", "data_ref_fmt", "data_fmt", "dia_da_semana", "antecedencia", "rota_principal", "sentido", "tipo_assento", "turno", 
         col_buscas_ref, col_buscas_atual, col_pax_atual, "capacidade_atual", "vagas_restantes", "ocupacao_a_fmt",
@@ -291,7 +285,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
     
     df_show = df_editor.set_index("row_id")[show_cols_safe].copy()
 
-    # Adicionado "ocupacao_a_fmt" nas configurações de layout
     col_config = {
         "incluir": st.column_config.CheckboxColumn("Incluir", default=True),
         "data_ref_fmt": st.column_config.TextColumn(f"Data Ref. ({ref_nome})", disabled=True),
@@ -307,7 +300,7 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
         col_pax_atual: st.column_config.NumberColumn("PAX Atual", disabled=True),
         "capacidade_atual": st.column_config.NumberColumn("Capacidade", disabled=True),
         "vagas_restantes": st.column_config.NumberColumn("↑ Vagas", disabled=True),
-        "ocupacao_a_fmt": st.column_config.TextColumn("Ocupação", disabled=True), # NOVA COLUNA
+        "ocupacao_a_fmt": st.column_config.TextColumn("Ocupação", disabled=True),
         "lf_ref_fmt": st.column_config.TextColumn(f"LF ({ref_nome})", disabled=True),
         "lf_a_fmt": st.column_config.TextColumn("LF Atual", disabled=True),
         "ratio_ref_fmt": st.column_config.TextColumn(f"Ratio LF ({ref_nome})", disabled=True),
@@ -382,7 +375,8 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
             df_export = df_acionamento.drop(columns=["row_id", "max_split_antigo", "max_split_novo"], errors='ignore')
             st.dataframe(df_export, use_container_width=True, hide_index=True)
 
-            col_b1, col_b2, col_b3, _ = st.columns([1.5, 1.5, 1, 3])
+            # --- NOVA ÁREA DOS BOTÕES (COM DATABRICKS INCLUÍDO) ---
+            col_b1, col_b2, col_db, col_b3 = st.columns([1.5, 1.5, 1.5, 1.5])
             csv_bytes = df_export.to_csv(index=False).encode("utf-8")
 
             def mark_as_sent():
@@ -396,18 +390,19 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                     if r_id in st.session_state[dict_key]: del st.session_state[dict_key][r_id]
                 st.session_state[key_version] += 1
 
+            # 1. Download CSV
             with col_b1:
                 if st.download_button("Baixar como CSV", data=csv_bytes, file_name=f"pricing_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv", use_container_width=True):
                     mark_as_sent()
                     st.rerun()
 
+            # 2. Enviar GitHub
             with col_b2:
-                if st.button("Enviar pro GitHub", use_container_width=True, type="primary"):
+                if st.button("Enviar pro GitHub", use_container_width=True):
                     gh_token = st.session_state.get(f"t3_gh_token", "")
                     if not gh_token: 
-                        st.warning("Atenção: Cole seu token no campo abaixo primeiro.")
+                        st.warning("Cole seu token do GitHub abaixo primeiro.")
                     else:
-                        # ===== O REPOSITÓRIO CORRETO ESTÁ AQUI AGORA =====
                         repo = "laviniateixeira-dev/Editor-precos-julho"
                         path = f"data/alteracoes_{feriado_atual}.csv"
                         r_gh = requests.put(f"https://api.github.com/repos/{repo}/contents/{path}", 
@@ -415,10 +410,42 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                                             data=json.dumps({"message": f"pricing: {path}", "content": base64.b64encode(csv_bytes).decode("utf-8"), "branch": "main"}))
                         if r_gh.status_code in (200, 201):
                             mark_as_sent()
-                            st.success("Tudo certo! Arquivo enviado com sucesso.")
+                            st.success("Tudo certo! Arquivo enviado com sucesso pro GitHub.")
                             st.rerun()
                         else: st.error(f"Erro ao enviar: {r_gh.status_code}")
 
+            # 3. Enviar Databricks
+            with col_db:
+                if st.button("Enviar pro Databricks", use_container_width=True, type="primary"):
+                    db_url = st.session_state.get("db_url_input", "").strip('/')
+                    db_token = st.session_state.get("db_token_input", "")
+                    
+                    if not db_url or not db_token:
+                        st.warning("Preencha a URL e Token do Databricks abaixo.")
+                    else:
+                        nome_arquivo_db = f"pricing_{feriado_atual}.csv"
+                        caminho_dbfs = f"/FileStore/uploads_pricing/{nome_arquivo_db}"
+                        
+                        encoded_csv = base64.b64encode(csv_bytes).decode("utf-8")
+                        
+                        payload = {
+                            "path": caminho_dbfs,
+                            "contents": encoded_csv,
+                            "overwrite": True
+                        }
+                        headers = {"Authorization": f"Bearer {db_token}"}
+                        
+                        endpoint = f"{db_url}/api/2.0/dbfs/put"
+                        r_db = requests.post(endpoint, json=payload, headers=headers)
+                        
+                        if r_db.status_code == 200:
+                            mark_as_sent()
+                            st.success(f"Sucesso! Arquivo enviado para o Databricks em: {caminho_dbfs}")
+                            st.rerun()
+                        else:
+                            st.error(f"Erro Databricks: {r_db.status_code} - {r_db.text}")
+
+            # 4. Limpar Edições
             with col_b3:
                 if st.button("Limpar Edições", use_container_width=True):
                     st.session_state[key_version] += 1
@@ -426,7 +453,16 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                     st.session_state[dict_key] = {}
                     st.rerun()
 
-            st.text_input("Token de Acesso do GitHub (Apenas Sessão):", type="password", key=f"t3_gh_token")
+            # --- CAMPOS DE CREDENCIAIS ---
+            st.markdown('<div class="section-label" style="margin-top: 1rem;">Credenciais de Acesso (Sessão)</div>', unsafe_allow_html=True)
+            col_cred1, col_cred2, col_cred3 = st.columns(3)
+            with col_cred1:
+                st.text_input("Token do GitHub:", type="password", key=f"t3_gh_token")
+            with col_cred2:
+                st.text_input("URL Instância Databricks:", placeholder="https://<instancia>.databricks.com", key="db_url_input")
+            with col_cred3:
+                st.text_input("Token do Databricks:", type="password", key="db_token_input")
+
     else:
         st.markdown('<div style="padding:15px 20px; background:var(--secondary-background-color); border:1px dashed var(--buser-pink); border-radius:8px; margin-top:20px; text-align:center; color:var(--text-color); font-weight: 500;">Nenhum preço alterado ainda. Preencha a coluna <b>Preço Novo</b> na tabela acima.</div>', unsafe_allow_html=True)
         if st.button("Limpar Tudo", key=f"t3_reset_empty"):
