@@ -178,18 +178,19 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
         st.write("") 
         ref_nome = st.selectbox("Comparar com (Ref):", opcoes_dropdown, key=f"{tab_key}_ref_sel")
         
+        # Mapeamento atualizado para bater com as colunas "hist" do Databricks
         mapa_ref = {
-            "Julho 2025": "julho_2025"
+            "Julho 2025": "hist"
         }
-        ref_sel = mapa_ref.get(ref_nome, "julho_2025")
+        ref_sel = mapa_ref.get(ref_nome, "hist")
 
-        col_data_ref = f"data_ref_{ref_sel}"
-        col_buscas_ref = f"buscas_{ref_sel}"
-        col_lf_ref = f"lf_{ref_sel}"
-        col_ratio_ref = f"ratio_lf_{ref_sel}"
-        col_tkm_ref = f"tkm_{ref_sel}"
+        col_data_ref = "data_ref_hist"
+        col_buscas_ref = "buscas_hist"
+        col_lf_ref = "lf_hist"
+        col_ratio_ref = "ratio_lf_hist"
+        col_tkm_ref = "tkm_hist"
 
-        col_buscas_atual = f"buscas_{feriado_atual}"
+        col_buscas_atual = "buscas_atual"
         col_pax_atual = "pax_atual"
         col_lf_atual = "lf_atual"
 
@@ -202,7 +203,7 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
     essenciais = [col_data_ref, col_lf_ref, col_tkm_ref, col_buscas_atual, col_lf_atual]
     faltam = [c for c in essenciais if c not in df_raw.columns]
     if faltam:
-        st.markdown(f'<div class="warn-banner">⚠️ Atenção...</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="warn-banner">⚠️ Atenção: Faltam as seguintes colunas no arquivo: {", ".join(faltam)}.</div>', unsafe_allow_html=True)
 
     def calc_row_id(row):
         data_val = row.get("data_atual")
