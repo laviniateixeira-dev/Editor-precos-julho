@@ -29,9 +29,12 @@ if "cb_version" not in st.session_state:
 # ==========================================
 feriado_atual = "julho_2026"
 
-# Ajustado para bater exatamente com o arquivo "julho_2026_editor.csv" que o Databricks enviou
-nome_arquivo_github = "julho_2026_editor" 
-BASE_URL_CURVA = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/{nome_arquivo_github}.csv"
+# 🚨 AQUI ESTÃO AS DUAS URLs OFICIAIS QUE VOCÊ GEROU
+nome_arquivo_github_a = "julho_2026_editor" 
+nome_arquivo_github_b = "julho_2026_geral" 
+
+BASE_URL_A = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/{nome_arquivo_github_a}.csv"
+BASE_URL_B = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/{nome_arquivo_github_b}.csv"
 
 st.set_page_config(
     page_title="Pricing · Editor",
@@ -153,13 +156,17 @@ with st.sidebar:
         st.rerun()
 
     cb = st.session_state["cb_version"]
-    df_editor_raw = prep_editor(load_data(BASE_URL_CURVA, cb))
+    
+    # 🚨 Puxando os dois DataFrames de forma separada usando as duas URLs
+    df_editor_a_raw = prep_editor(load_data(BASE_URL_A, cb))
+    df_editor_b_raw = prep_editor(load_data(BASE_URL_B, cb))
 
-# ── ABAS DA PÁGINA ────────────────────────────────────────────────────────────
-tab1, tab2 = st.tabs(["Editor de Preços", "Histórico de Alterações"])
+# ── ABAS DA PÁGINA (AGORA SÃO 3 ABAS) ─────────────────────────────────────────
+tab1, tab2, tab3 = st.tabs(["Editor de Preços", "Editor de Preços - Geral", "Histórico de Alterações"])
 
 # ── FUNÇÃO 1: EDITOR DE PREÇOS ────────────────────────────────────────────────
-def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
+# 🚨 Adicionado o parâmetro arquivo_destino para não sobrescrever dados
+def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str, arquivo_destino: str):
     agora_t = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     col_t1, col_t2 = st.columns([3, 1])
@@ -178,7 +185,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
         st.write("") 
         ref_nome = st.selectbox("Comparar com (Ref):", opcoes_dropdown, key=f"{tab_key}_ref_sel")
         
-        # Mapeamento atualizado para bater com as colunas "hist" do Databricks
         mapa_ref = {
             "Julho 2025": "hist"
         }
@@ -197,7 +203,7 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
     st.markdown(f'<div class="header-divider"><span style="color:var(--text-color); opacity: 0.6; font-size:0.85rem; font-weight: 500;">Atualizado via Databricks às {agora_t}</span></div>', unsafe_allow_html=True)
 
     if df_raw.empty:
-        st.info("Nenhum dado encontrado para o editor. Verifique o arquivo no GitHub.")
+        st.info("Nenhum dado encontrado para esta aba. Verifique se o arquivo existe no GitHub e tem o nome correto.")
         return
 
     essenciais = [col_data_ref, col_lf_ref, col_tkm_ref, col_buscas_atual, col_lf_atual]
@@ -385,7 +391,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
             df_export = df_acionamento.drop(columns=["row_id", "max_split_antigo", "max_split_novo"], errors='ignore')
             st.dataframe(df_export, use_container_width=True, hide_index=True)
 
-            # --- NOVA ÁREA DOS BOTÕES (COM DATABRICKS INCLUÍDO) ---
             col_b1, col_b2, col_db, col_b3 = st.columns([1.5, 1.5, 1.5, 1.5])
             csv_bytes = df_export.to_csv(index=False).encode("utf-8")
 
@@ -402,19 +407,21 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
 
             # 1. Download CSV
             with col_b1:
-                if st.download_button("Baixar como CSV", data=csv_bytes, file_name=f"pricing_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv", use_container_width=True):
+                # 🚨 Usa arquivo_destino para não confundir os downloads e key pro Streamlit não bugar
+                if st.download_button("Baixar como CSV", data=csv_bytes, file_name=f"pricing_{arquivo_destino}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv", use_container_width=True, key=f"{tab_key}_btn_down"):
                     mark_as_sent()
                     st.rerun()
 
             # 2. Enviar GitHub
             with col_b2:
-                if st.button("Enviar pro GitHub", use_container_width=True):
-                    gh_token = st.session_state.get(f"t3_gh_token", "")
+                if st.button("Enviar pro GitHub", use_container_width=True, key=f"{tab_key}_btn_gh"):
+                    gh_token = st.session_state.get(f"{tab_key}_gh_token", "")
                     if not gh_token: 
                         st.warning("Cole seu token do GitHub abaixo primeiro.")
                     else:
                         repo = "laviniateixeira-dev/Editor-precos-julho"
-                        path = f"data/alteracoes_{feriado_atual}.csv"
+                        # 🚨 Usa arquivo_destino para gerar arquivos diferentes no GitHub
+                        path = f"data/alteracoes_{feriado_atual}_{arquivo_destino}.csv"
                         r_gh = requests.put(f"https://api.github.com/repos/{repo}/contents/{path}", 
                                             headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json"},
                                             data=json.dumps({"message": f"pricing: {path}", "content": base64.b64encode(csv_bytes).decode("utf-8"), "branch": "main"}))
@@ -424,16 +431,17 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                             st.rerun()
                         else: st.error(f"Erro ao enviar: {r_gh.status_code}")
 
-            # 3. Enviar Databricks (Corrigido para aceitar 204 como sucesso)
+            # 3. Enviar Databricks
             with col_db:
-                if st.button("Enviar pro Databricks", use_container_width=True, type="primary"):
-                    db_url = st.session_state.get("db_url_input", "").split('?')[0].strip().strip('/')
-                    db_token = st.session_state.get("db_token_input", "")
+                if st.button("Enviar pro Databricks", use_container_width=True, type="primary", key=f"{tab_key}_btn_db"):
+                    db_url = st.session_state.get(f"{tab_key}_db_url", "").split('?')[0].strip().strip('/')
+                    db_token = st.session_state.get(f"{tab_key}_db_token", "")
                     
                     if not db_url or not db_token:
                         st.warning("Preencha a URL e Token do Databricks abaixo.")
                     else:
-                        caminho_volume = f"/Volumes/prod/dataanalysis/files/pricing_{feriado_atual}.csv"
+                        # 🚨 Usa arquivo_destino para gerar arquivos diferentes no Databricks
+                        caminho_volume = f"/Volumes/prod/dataanalysis/files/pricing_{feriado_atual}_{arquivo_destino}.csv"
                         endpoint = f"{db_url}/api/2.0/fs/files{caminho_volume}"
                         
                         headers = {
@@ -443,36 +451,34 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str):
                         
                         r_db = requests.put(endpoint, headers=headers, data=csv_bytes, params={"overwrite": "true"})
                         
-                        # ADICIONADO: Aceitar 201 (Created) e 204 (No Content) como sucesso
                         if r_db.status_code in (200, 201, 204):
                             mark_as_sent()
                             st.success(f"Sucesso! Arquivo enviado para: {caminho_volume}")
                             st.rerun()
                         else:
-                            # ADICIONADO: Mensagem de erro mais amigável
                             st.error(f"Erro ao enviar para o Databricks. Código: {r_db.status_code}. Mensagem: {r_db.text}")
 
             # 4. Limpar Edições
             with col_b3:
-                if st.button("Limpar Edições", use_container_width=True):
+                if st.button("Limpar Edições", use_container_width=True, key=f"{tab_key}_btn_limpar"):
                     st.session_state[key_version] += 1
                     st.session_state[key_enviadas] = set()
                     st.session_state[dict_key] = {}
                     st.rerun()
 
-            # --- CAMPOS DE CREDENCIAIS ---
+            # --- CAMPOS DE CREDENCIAIS (Ajustados com tab_key) ---
             st.markdown('<div class="section-label" style="margin-top: 1rem;">Credenciais de Acesso (Sessão)</div>', unsafe_allow_html=True)
             col_cred1, col_cred2, col_cred3 = st.columns(3)
             with col_cred1:
-                st.text_input("Token do GitHub:", type="password", key=f"t3_gh_token")
+                st.text_input("Token do GitHub:", type="password", key=f"{tab_key}_gh_token")
             with col_cred2:
-                st.text_input("URL Instância Databricks:", placeholder="https://<instancia>.databricks.com", key="db_url_input")
+                st.text_input("URL Instância Databricks:", placeholder="https://<instancia>.databricks.com", key=f"{tab_key}_db_url")
             with col_cred3:
-                st.text_input("Token do Databricks:", type="password", key="db_token_input")
+                st.text_input("Token do Databricks:", type="password", key=f"{tab_key}_db_token")
 
     else:
         st.markdown('<div style="padding:15px 20px; background:var(--secondary-background-color); border:1px dashed var(--buser-pink); border-radius:8px; margin-top:20px; text-align:center; color:var(--text-color); font-weight: 500;">Nenhum preço alterado ainda. Preencha a coluna <b>Preço Novo</b> na tabela acima.</div>', unsafe_allow_html=True)
-        if st.button("Limpar Tudo", key=f"t3_reset_empty"):
+        if st.button("Limpar Tudo", key=f"{tab_key}_reset_empty"):
             st.session_state[key_version] += 1
             st.session_state[key_enviadas] = set()
             st.session_state[dict_key] = {}
@@ -545,5 +551,11 @@ def render_historico():
             st.info("Nenhuma alteração de preço registrada no histórico ainda. Suas alterações na aba 'Editor de Preços' aparecerão aqui.")
 
 # ── RENDERIZAÇÃO FINAL DAS ABAS ─────────────────────────
-with tab1: render_editor(df_editor_raw, tab_key="t3", titulo="Editor de Preços")
-with tab2: render_historico()
+# Aba 1: Puxa do df_editor_a_raw e exporta com o sufixo "editor"
+with tab1: render_editor(df_editor_a_raw, tab_key="t1_aba_a", titulo="Editor de Preços", arquivo_destino="editor")
+
+# Aba 2: Puxa do df_editor_b_raw e exporta com o sufixo "geral"
+with tab2: render_editor(df_editor_b_raw, tab_key="t2_aba_b", titulo="Editor de Preços - Geral", arquivo_destino="geral")
+
+# Aba 3: Histórico comum
+with tab3: render_historico()
