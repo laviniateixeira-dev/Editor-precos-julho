@@ -162,7 +162,8 @@ with st.sidebar:
     df_editor_b_raw = prep_editor(load_data(BASE_URL_B, cb))
 
 # ── ABAS DA PÁGINA (AGORA SÃO 3 ABAS) ─────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["Editor de Preços", "Editor de Preços - Geral", "Histórico de Alterações"])
+# 👇 AQUI: Mudei o nome da primeira aba para "Editor de Preços - Farol"
+tab1, tab2, tab3 = st.tabs(["Editor de Preços - Farol", "Editor de Preços - Geral", "Histórico de Alterações"])
 
 # ── FUNÇÃO 1: EDITOR DE PREÇOS ────────────────────────────────────────────────
 # 🚨 Adicionado o parâmetro arquivo_destino para não sobrescrever dados
@@ -551,8 +552,9 @@ def render_historico():
             st.info("Nenhuma alteração de preço registrada no histórico ainda. Suas alterações na aba 'Editor de Preços' aparecerão aqui.")
 
 # ── RENDERIZAÇÃO FINAL DAS ABAS ─────────────────────────
+# 👇 AQUI: Mudei o título da função também para refletir dentro do cabeçalho da página
 # Aba 1: Puxa do df_editor_a_raw e exporta com o sufixo "editor"
-with tab1: render_editor(df_editor_a_raw, tab_key="t1_aba_a", titulo="Editor de Preços", arquivo_destino="editor")
+with tab1: render_editor(df_editor_a_raw, tab_key="t1_aba_a", titulo="Editor de Preços - Farol", arquivo_destino="editor")
 
 # Aba 2: Puxa do df_editor_b_raw e exporta com o sufixo "geral"
 with tab2: render_editor(df_editor_b_raw, tab_key="t2_aba_b", titulo="Editor de Preços - Geral", arquivo_destino="geral")
