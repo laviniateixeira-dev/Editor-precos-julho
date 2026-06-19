@@ -29,12 +29,14 @@ if "cb_version" not in st.session_state:
 # ==========================================
 feriado_atual = "julho_2026"
 
-# 🚨 AQUI ESTÃO AS DUAS URLs OFICIAIS QUE VOCÊ GEROU
+# 🚨 AQUI ESTÃO AS TRÊS URLs OFICIAIS
 nome_arquivo_github_a = "julho_2026_editor" 
 nome_arquivo_github_b = "julho_2026_geral" 
+nome_arquivo_github_c = "julho_2026_feriado" 
 
 BASE_URL_A = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/{nome_arquivo_github_a}.csv"
 BASE_URL_B = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/{nome_arquivo_github_b}.csv"
+BASE_URL_C = f"https://raw.githubusercontent.com/laviniateixeira-dev/Editor-precos-julho/main/data/{nome_arquivo_github_c}.csv"
 
 st.set_page_config(
     page_title="Pricing · Editor",
@@ -157,16 +159,20 @@ with st.sidebar:
 
     cb = st.session_state["cb_version"]
     
-    # 🚨 Puxando os dois DataFrames de forma separada usando as duas URLs
+    # 🚨 Puxando os TRÊS DataFrames de forma separada
     df_editor_a_raw = prep_editor(load_data(BASE_URL_A, cb))
     df_editor_b_raw = prep_editor(load_data(BASE_URL_B, cb))
+    df_editor_c_raw = prep_editor(load_data(BASE_URL_C, cb))
 
-# ── ABAS DA PÁGINA (AGORA SÃO 3 ABAS) ─────────────────────────────────────────
-# 👇 AQUI: Mudei o nome da primeira aba para "Editor de Preços - Farol"
-tab1, tab2, tab3 = st.tabs(["Editor de Preços - Farol", "Editor de Preços - Geral", "Histórico de Alterações"])
+# ── ABAS DA PÁGINA (AGORA SÃO 4 ABAS) ─────────────────────────────────────────
+tab1, tab2, tab3, tab4 = st.tabs([
+    "Editor de Preços - Farol", 
+    "Editor de Preços - Geral", 
+    "Editor de Preços - 9 de Julho",
+    "Histórico de Alterações"
+])
 
 # ── FUNÇÃO 1: EDITOR DE PREÇOS ────────────────────────────────────────────────
-# 🚨 Adicionado o parâmetro arquivo_destino para não sobrescrever dados
 def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str, arquivo_destino: str):
     agora_t = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -408,7 +414,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str, arquivo_desti
 
             # 1. Download CSV
             with col_b1:
-                # 🚨 Usa arquivo_destino para não confundir os downloads e key pro Streamlit não bugar
                 if st.download_button("Baixar como CSV", data=csv_bytes, file_name=f"pricing_{arquivo_destino}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", mime="text/csv", use_container_width=True, key=f"{tab_key}_btn_down"):
                     mark_as_sent()
                     st.rerun()
@@ -421,7 +426,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str, arquivo_desti
                         st.warning("Cole seu token do GitHub abaixo primeiro.")
                     else:
                         repo = "laviniateixeira-dev/Editor-precos-julho"
-                        # 🚨 Usa arquivo_destino para gerar arquivos diferentes no GitHub
                         path = f"data/alteracoes_{feriado_atual}_{arquivo_destino}.csv"
                         r_gh = requests.put(f"https://api.github.com/repos/{repo}/contents/{path}", 
                                             headers={"Authorization": f"token {gh_token}", "Accept": "application/vnd.github.v3+json"},
@@ -441,7 +445,6 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str, arquivo_desti
                     if not db_url or not db_token:
                         st.warning("Preencha a URL e Token do Databricks abaixo.")
                     else:
-                        # 🚨 Usa arquivo_destino para gerar arquivos diferentes no Databricks
                         caminho_volume = f"/Volumes/prod/dataanalysis/files/pricing_{feriado_atual}_{arquivo_destino}.csv"
                         endpoint = f"{db_url}/api/2.0/fs/files{caminho_volume}"
                         
@@ -467,7 +470,7 @@ def render_editor(df_raw: pd.DataFrame, tab_key: str, titulo: str, arquivo_desti
                     st.session_state[dict_key] = {}
                     st.rerun()
 
-            # --- CAMPOS DE CREDENCIAIS (Ajustados com tab_key) ---
+            # --- CAMPOS DE CREDENCIAIS ---
             st.markdown('<div class="section-label" style="margin-top: 1rem;">Credenciais de Acesso (Sessão)</div>', unsafe_allow_html=True)
             col_cred1, col_cred2, col_cred3 = st.columns(3)
             with col_cred1:
@@ -552,12 +555,15 @@ def render_historico():
             st.info("Nenhuma alteração de preço registrada no histórico ainda. Suas alterações na aba 'Editor de Preços' aparecerão aqui.")
 
 # ── RENDERIZAÇÃO FINAL DAS ABAS ─────────────────────────
-# 👇 AQUI: Mudei o título da função também para refletir dentro do cabeçalho da página
+
 # Aba 1: Puxa do df_editor_a_raw e exporta com o sufixo "editor"
 with tab1: render_editor(df_editor_a_raw, tab_key="t1_aba_a", titulo="Editor de Preços - Farol", arquivo_destino="editor")
 
 # Aba 2: Puxa do df_editor_b_raw e exporta com o sufixo "geral"
 with tab2: render_editor(df_editor_b_raw, tab_key="t2_aba_b", titulo="Editor de Preços - Geral", arquivo_destino="geral")
 
-# Aba 3: Histórico comum
-with tab3: render_historico()
+# Aba 3: Puxa do df_editor_c_raw e exporta com o sufixo "feriado"
+with tab3: render_editor(df_editor_c_raw, tab_key="t3_aba_c", titulo="Editor de Preços - 9 de Julho", arquivo_destino="feriado")
+
+# Aba 4: Histórico comum
+with tab4: render_historico()
